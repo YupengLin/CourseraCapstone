@@ -1,0 +1,158 @@
+---
+title: "Coursera Milestone"
+author: "Yupeng Lin"
+date: "July 25, 2015"
+output: html_document
+---
+### Introduction
+
+The coursera capstone project aims to build a predictive model for user input. The training set comes from three corpus extracted from blog, news and twitter. The prediction is based on word level instead of character level. Therefore, the n-gram algorithm is a used tool to build this model.
+
+### Data Import
+
+First of all, we can load the separate files via connection function.The length of those three corpus.
+
+```{r, cache=TRUE,warning=FALSE}
+filePath_blog <- "final/en_US/en_US.blogs.txt"
+filePath_news <- "final/en_US/en_US.news.txt"
+filePath_twitter <- "final/en_US/en_US.twitter.txt"
+conn_blog <- file(filePath_blog)
+conn_news <- file(filePath_news)
+conn_twitter <- file(filePath_twitter)
+
+set.seed(1234)
+
+blogs <- readLines(conn_blog)
+news <- readLines(conn_news)
+twitter <- readLines(conn_twitter)
+
+length(blogs)
+length(news)
+length(twitter)
+```
+### Sample the training set
+
+From the length displayed above,we can see that it is a very large text file. however, in the english, most frequent words for daily use are around 50'000. Therefore, we can confidently drop a lot of corpus. This samll portion also helps us to facilitate the next step of data statistics.
+
+```{r, eval=FALSE}
+blog_index <- c(1:length(blogs))
+blog_training_index <- sample(blog_index, round(length(blog_index) * 0.01))
+blog_training_set <- blogs[blog_training_index]
+blog_testing_set <- blogs[-blog_training_index]
+
+news_index <- c(1:length(news))
+news_training_index <- sample(news_index, round(length(news_index) * 0.01))
+news_training_set <- news[news_training_index]
+news_testing_set <- news[-news_training_index]
+
+twitter <- readLines(conn_twitter)
+twitter_index <- c(1:length(twitter))
+twitter_training_index <- sample(twitter_index, round(length(twitter_index) * 0.01))
+twitter_training_set <- twitter[twitter_training_index]
+twitter_testing_set <- twitter[-twitter_training_index]
+
+close(conn_blog)
+close(conn_twitter)
+close(conn_news)
+training_set <- c(blog_training_set, news_training_set, twitter_training_set)
+```
+
+After we have the training set, we can close the file connection and concatnate those text into one very large character vector.
+
+### Make Clean Data Set
+Since the data sets came from various source, sentences and words in the corpus will generate a lot of useless information. The text mining package will help us to eliminate the punction, numbers, and convert all the word to lower case. In addition, the english stop word will also be eliminated for the efficiency of word.
+
+I set the trainingset as the first 10 sentences just for the demo purpose.
+
+```{r,cache=TRUE, warning=FALSE,message=FALSE}
+library(tm)
+library(wordcloud)
+
+training_set <- blogs[1:10000]
+blog_corpus <- VCorpus(VectorSource(training_set))
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+blog_corpus <- tm_map(blog_corpus, toSpace, "/")
+blog_corpus <- tm_map(blog_corpus, toSpace, "@")
+blog_corpus<- tm_map(blog_corpus, toSpace, "\\|")
+blog_corpus <- tm_map(blog_corpus,content_transformer(tolower))
+blog_corpus <- tm_map(blog_corpus,removeNumbers)
+blog_corpus <- tm_map(blog_corpus,removePunctuation)
+blog_corpus <- tm_map(blog_corpus,removeWords, stopwords("english"))
+blog_corpus <- tm_map(blog_corpus, stripWhitespace)
+```
+
+This result of word cleaning is displayed as following.
+
+```{r}
+as.character(blog_corpus[[4]])
+```
+
+### Unigram, bigram and trigram
+We can move paste function to generate the unigram, bigram and trigram.
+```{r,cache=TRUE, warning=FALSE, message=FALSE}
+sentence <- ""
+for (i in 1:length(training_set)){
+  sentence <- paste(sentence, as.character(blog_corpus[[i]]))
+}
+tokens <- unlist(strsplit(sentence," "))
+tokens <- tokens[tokens != ""]
+
+two_tokens <- c("")
+three_tokens <-c("")
+
+for(i in 1:length(training_set)){
+  sentence <- ""
+  sentence <- paste(sentence, as.character(blog_corpus[[i]])) #ingest single sentence
+  one_token <- unlist(strsplit(sentence," "))
+  one_token <- one_token[one_token != ""]
+  one_token_moved <- c(one_token[-1], ".")
+  sentence_tokens <- paste(one_token, one_token_moved)
+  two_tokens <- c(two_tokens, sentence_tokens)
+  
+  one_token_moved2 <- c(one_token_moved[-1], ".")
+  trigram_tokens <- paste(one_token, one_token_moved, one_token_moved2)
+  three_tokens <- c(three_tokens, trigram_tokens)
+}
+load("token_one_percent.RData")
+
+freq_one <- sort(table(tokens), decreasing=T)
+stat_one <- data.frame(word = row.names(freq_one), count = as.vector(freq_one))
+stat_one$prob <- stat_one$count / length(tokens)
+
+freq_two <- sort(table(two_tokens), decreasing = T)
+stat_two <- data.frame(word = row.names(freq_two), count = as.vector(freq_two))
+stat_two$prob <- stat_two$count / length(two_tokens)
+
+freq_three <- sort(table(three_tokens), decreasing = T)
+stat_three <- data.frame(word= row.names(freq_three), count = as.vector(freq_three))
+stat_three$prob <- stat_three$count / length(three_tokens)
+
+wordcloud(words = stat_one$word, freq = stat_one$count, min.freq = 1,
+         max.words=200, random.order=FALSE, rot.per=0.35,   
+         colors=brewer.pal(8, "Dark2"))
+
+head(stat_one)
+head(stat_two, 10)
+
+```
+
+Notice: the period means the end of sentence.
+
+### Algorithm
+
+Next word can be predicted by calculated probability given previous word. For example, give "of"
+we can use bigram table to find out which word has highest frequecy following the word "of". 
+
+Improved algorithm -- back-off algorithm
+
+N-gram preforms very well given the previous word in the n-gram table. What if the previous word does not exist in the n-gram table. There is a solution:
+
+P(Wi | Wi-1, Wi-2) = 0.6P(Wi | Wi-1, Wi-2) + 0.3P(Wi | Wi-1) + 0.1P(Wi)
+
+By this way, we can successfuly predict the word that does not show up previously.
+
+
+
+
+
+
