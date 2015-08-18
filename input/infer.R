@@ -1,6 +1,5 @@
-library('stringr')
 load("ngram.RData")
-
+library(stringr)
 infer <- function(input, index){
   word <- gsub("[^a-zA-Z\n\']", " ", input)
   word <- tolower(word)
