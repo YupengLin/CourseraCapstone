@@ -1,13 +1,24 @@
 source("infer.R")
+library(data.table)
 shinyServer(function(input, output) {
-   output$text1 <- renderText({
-     infer(input$text, 1)
+  
+   textInput <- reactive({
+     if(substring(input$text, nchar(input$text), nchar(input$text)) == " ")
+     infer(input$text)
+  })
+ 
+  
+  output$text1 <- renderText({
+     textInput()[1]
+     
    })
    output$text2 <- renderText({
-     infer(input$text, 2)
+      textInput()[2]
+       
    })
    output$text3 <- renderText({
-     infer(input$text, 3)
+      textInput()[3]
+      
    })
 
   
