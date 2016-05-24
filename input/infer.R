@@ -46,16 +46,19 @@ c(word1, word2, word3)
 
 }
 
+# Three word search
 threewordSearch <- function(word1, word2, word3) {
   inquiry <- paste(word1, word2, word3)
   Quadtable[inquiry,]
 }
 
+# Two word search
 twowordSearch <- function(word1, word2) {
   inquiry <- paste(word1, word2)
   Tritable[inquiry,]
 }
 
+# One word search
 onewordSearch <- function(word1) {
   Bitable[word1,]
 }
